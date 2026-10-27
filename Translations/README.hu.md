@@ -20,7 +20,8 @@ A [`kernel/`](../kernel/) könyvtár ezt a magot írja újra négy modern, típu
 | **Zig `0.16.0` AGC Kernel** | [`kernel/zig/src/agc_kernel.zig`](../kernel/zig/src/agc_kernel.zig) | Univerzális `NAND`-kapukból felépített 15-bites 1-es komplemens ALU (`nand15`, `add1sComplementNand`, vég-átviteles `end-around carry`, 16-bites páratlan paritás), `BFP-64` 64-trites Kleene `+AND=1` / `~NAND=-1` bitplane kvantálás (`SPQT`), `0x62`-gate 32B `wupz` keretpecsételés, valamint típusbiztos `Executive` (`NOVAC`, `FINDVAC`, `CHANG1`, `JOBSLEEP`, `JOBWAKE`, `ENDJOB`, `Alarm 01201`/`01202`) és `Waitlist` (`WAITLIST`, `TASKOVER`, `T3RUPT`, `Alarm 01203`). |
 | **Rust AGC Kernel** | [`kernel/rust/src/lib.rs`](../kernel/rust/src/lib.rs) | `#[forbid(unsafe_code)]` típusbiztos Rust implementáció: `Word15` 1-es komplemens `NAND` ALU, `Bfp64Nand` kvantált ternáris kapuk, `Executive` (7 Core Set + 5 VAC terület), `Waitlist` (9 feladatos `LST1`/`LST2` delta-időzítő) és `0x62` 32B frame seal — bitre azonos eredményekkel a Zig kernellel. |
 | **Go AGC Kernel** | [`kernel/go/agc_kernel.go`](../kernel/go/agc_kernel.go) | Konkurens, `-race` alatt tesztelt Go referencia- és differenciális ellenőrző (`NandAlu15`, `BFP64NandKleene`, `Executive`, `Waitlist`, `SealFrame32B` a `0x62` kapun). |
-| **Idris 2 QTT Specifikáció** | [`kernel/idris/AgcKernel.idr`](../kernel/idris/AgcKernel.idr) | Quantitative Type Theory (`0, 1, ω`) formális specifikáció: lineáris (`1`) VAC terület-tokenek (amelyek fordítási időben kizárják a `1201`/`1202` VAC-szivárgást), univerzális `NAND` teljesség és `Fin 9` korlátos `WAITLIST`. |
+| **Perl 5 `NANDIFY` & `Luminary099` Scanner** | [`kernel/perl/agc_nandify.pl`](../kernel/perl/agc_nandify.pl) | Élő `Luminary099/EXECUTIVE.agc` és `WAITLIST.agc` assembly szimbólum-kinyerő (`NOVAC`, `FINDVAC`, `SPVAC`, `CHANG1`, `CHANG2`, `JOBSLEEP`, `JOBWAKE`, `TWIDDLE`, `WAITLIST`), 15-bites 1-es komplemens `NAND` ALU, `BFP-64` bitplane motor és automatikus Idris 2 bizonyítás-generátor (`--emit-idris`). |
+| **Idris 2 QTT Specifikáció & Bizonyítások** | [`kernel/idris/AgcKernel.idr`](../kernel/idris/AgcKernel.idr) · [`LuminaryProofs.idr`](../kernel/idris/LuminaryProofs.idr) | Quantitative Type Theory (`0, 1, ω`) formális specifikáció: az univerzális `NAND` kapu De Morgan- és involúciós tételei (`nandSynthesizesAnd`, `nandSynthesizesOr`), `Gate0x62Transition` (`-1 -> 0 -> +1`), lineáris (`1`) `CoreSetToken`/`VacToken` erőforrás-biztonság és `Fin 9` korlátos `WAITLIST`. |
 
 ### Futtatás és ellenőrzés
 
@@ -33,6 +34,11 @@ cargo test --manifest-path kernel/rust/Cargo.toml
 
 # 3. Go AGC Kernel tesztek (-race)
 cd kernel/go && go test -v -race ./...
+
+# 4. Perl 5 AGC NANDIFY tesztek + Luminary099 szimbólum-analízis + Idris 2 generálás
+perl kernel/perl/agc_nandify.pl --test
+perl kernel/perl/agc_nandify.pl --scan-luminary
+perl kernel/perl/agc_nandify.pl --emit-idris > kernel/idris/LuminaryProofs.idr
 ```
 
 ---

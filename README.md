@@ -104,12 +104,13 @@ out [Virtual AGC][8].
 
 The physical Apollo Guidance Computer (AGC Block II) was built exclusively from **4,100 3-input RTL NOR/NAND gates**, operating on **15-bit 1's-complement words + 1 odd-parity bit (`16 bits`)** under the real-time priority **`EXECUTIVE`** (`Luminary099/EXECUTIVE.agc`) and delta-time **`WAITLIST`** (`Luminary099/WAITLIST.agc`) kernel.
 
-The [`kernel/`](kernel/) directory re-implements the AGC Block II core in four typesafe systems languages with **universal `NAND` gate synthesis, `BFP-64` / `SPQT` quantized balanced-ternary `NANDIFY` bitplanes (`+AND=1`, `~NAND=-1`), and `0x62`-gate 32-byte `wupz` frame sealing**:
+The [`kernel/`](kernel/) directory re-implements the AGC Block II core in five systems/verification languages with **universal `NAND` gate synthesis, `BFP-64` / `SPQT` quantized balanced-ternary `NANDIFY` bitplanes (`+AND=1`, `~NAND=-1`), and `0x62`-gate 32-byte `wupz` frame sealing**:
 
 - **Zig `0.16.0`**: [`kernel/zig/src/agc_kernel.zig`](kernel/zig/src/agc_kernel.zig) (`zig test kernel/zig/src/agc_kernel.zig`)
 - **Rust (`#[forbid(unsafe_code)]`)**: [`kernel/rust/src/lib.rs`](kernel/rust/src/lib.rs) (`cargo test --manifest-path kernel/rust/Cargo.toml`)
 - **Go (`-race` verified)**: [`kernel/go/agc_kernel.go`](kernel/go/agc_kernel.go) (`cd kernel/go && go test -v -race ./...`)
-- **Idris 2 QTT (`0, 1, ω`)**: [`kernel/idris/AgcKernel.idr`](kernel/idris/AgcKernel.idr) (linear `1` VAC area tokens preventing `1201`/`1202` executive overflow at compile time)
+- **Perl 5 (`Luminary099` Assembler Scanner & Idris 2 Witness Emitter)**: [`kernel/perl/agc_nandify.pl`](kernel/perl/agc_nandify.pl) (`perl kernel/perl/agc_nandify.pl --test && perl kernel/perl/agc_nandify.pl --scan-luminary`)
+- **Idris 2 QTT (`0, 1, ω`)**: [`kernel/idris/AgcKernel.idr`](kernel/idris/AgcKernel.idr) & [`kernel/idris/LuminaryProofs.idr`](kernel/idris/LuminaryProofs.idr) (formal proofs of universal `NAND` synthesis, `0x62` gate transitions, and linear `1` `CoreSetToken`/`VacToken` preventing `1201`/`1202` executive overflow at compile time)
 
 ## Attribution
 

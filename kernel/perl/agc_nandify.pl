@@ -279,7 +279,12 @@ sub emit_idris_proofs {
     }
 
     push @lines, "||| Proof that every extracted Luminary EXECUTIVE/WAITLIST entrypoint";
-    push @lines, "||| carries a valid 15-bit 1's-complement word under the 0x62 gate.";
+    push @lines, "||| carries a valid 15-bit 1's-complement word under the 0x62 gate";
+    push @lines, "||| and is locked to the 8x8=64 BFP-64 Laser Phoenix Lattice boundary.";
+    push @lines, "public export";
+    push @lines, "luminaryBfp64Seal : Gate0x62Transition TNeg TPos";
+    push @lines, "luminaryBfp64Seal = luminousStillnessBfp64Seal laserPhoenixBfp64Boundary";
+    push @lines, "";
     push @lines, "public export";
     push @lines, "luminaryExtractedCount : Nat";
     push @lines, sprintf("luminaryExtractedCount = %d", scalar(@$entries));

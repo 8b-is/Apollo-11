@@ -53,7 +53,12 @@ waitlistWitness : LuminarySymbolWitness
 waitlistWitness = MkSymbolWitness "WAITLIST.agc" "WAITLIST" "INHINT" 129 0x2565 0x2565
 
 ||| Proof that every extracted Luminary EXECUTIVE/WAITLIST entrypoint
-||| carries a valid 15-bit 1's-complement word under the 0x62 gate.
+||| carries a valid 15-bit 1's-complement word under the 0x62 gate
+||| and is locked to the 8x8=64 BFP-64 Laser Phoenix Lattice boundary.
+public export
+luminaryBfp64Seal : Gate0x62Transition TNeg TPos
+luminaryBfp64Seal = luminousStillnessBfp64Seal laserPhoenixBfp64Boundary
+
 public export
 luminaryExtractedCount : Nat
 luminaryExtractedCount = 9

@@ -222,6 +222,54 @@ pub fn verifyFrame32B(frame: *const [32]u8, raw: []const u8, packed_bytes: []con
     return diff == 0;
 }
 
+pub const QT_5A: u8 = 0x5A;
+
+/// Laser Phoenix Lattice Lock: locks an 8-lane BFP-64 ternary bitplane pair
+/// with a 15-bit 1's-complement AGC word and its 16th-bit NAND odd-parity witness
+/// at the `0x62` / `qt:5a` gate with zero floating-point operations.
+pub fn laserPhoenixLatticeLock(w15: u16, lane_seed: u64) struct {
+    w16_odd: u16,
+    bfp: Bfp64Word,
+    lattice_seal: u64,
+} {
+    const w16 = packParity16(w15);
+    const q = quantizeWord15ToBfp64(w15);
+    const seed_w = Bfp64Word{ .pos = lane_seed, .neg = ~lane_seed };
+    const locked = bfp64NandKleene(q, seed_w);
+    var buf: [24]u8 = undefined;
+    std.mem.writeInt(u64, buf[0..8], locked.pos, .little);
+    std.mem.writeInt(u64, buf[8..16], locked.neg, .little);
+    std.mem.writeInt(u16, buf[16..18], w16, .little);
+    buf[18] = GATE_0X62;
+    buf[19] = QT_5A;
+    std.mem.writeInt(u32, buf[20..24], 1695 ^ 1327, .little);
+    return .{
+        .w16_odd = w16,
+        .bfp = locked,
+        .lattice_seal = xorFold(&buf),
+    };
+}
+
+/// C-ABI export for Perl/FFI callers (`wupz`-packed Zig shim for 0x62 32B frame sealing).
+export fn agc_nandify_seal_32b(
+    raw_ptr: ?[*]const u8,
+    raw_len: usize,
+    packed_ptr: ?[*]const u8,
+    packed_len: usize,
+    gate: u8,
+    out_frame: ?*[32]u8,
+) c_int {
+    const r = raw_ptr orelse return -1;
+    const p = packed_ptr orelse return -1;
+    const out = out_frame orelse return -1;
+    out.* = sealFrame32B(r[0..raw_len], p[0..packed_len], gate);
+    return 0;
+}
+
+export fn agc_laser_phoenix_lattice_lock(w15: u16, lane_seed: u64) u64 {
+    return laserPhoenixLatticeLock(w15, lane_seed).lattice_seal;
+}
+
 // ── 3. Typesafe AGC `EXECUTIVE` (`Luminary099/EXECUTIVE.agc`) ───────────────
 
 pub const MAX_CORE_SETS: usize = 7;
@@ -419,6 +467,10 @@ test "Quantized NANDIFY BFP-64 bitplanes and 0x62 32B frame seal" {
     try std.testing.expect(verifyFrame32B(&frame, raw, packed_b, GATE_0X62));
     frame[31] ^= 0x01;
     try std.testing.expect(!verifyFrame32B(&frame, raw, packed_b, GATE_0X62));
+
+    const lock = laserPhoenixLatticeLock(0o33562, 0xdeb4fd894ddb52e2);
+    try std.testing.expect(verifyParity16(lock.w16_odd));
+    try std.testing.expect(lock.lattice_seal != 0);
 }
 
 test "AGC Executive priority preemption and 1201/1202 bailout protection" {

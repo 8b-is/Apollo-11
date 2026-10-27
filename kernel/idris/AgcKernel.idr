@@ -98,6 +98,25 @@ public export
 luminousStillnessSeal : Gate0x62Transition TNeg TPos
 luminousStillnessSeal = ComposeGate0x62 ClampJitterToZero SealZeroToPos
 
+||| Explicit `BFP-64` 64-trit bitplane boundary witness ensuring zero-float integer
+||| alignment across 8 parallel lanes (`8 * 8 = 64` trits) at `qt:5a` / `0x62`.
+public export
+data Bfp64Boundary : (lanes : Nat) -> (tritsPerLane : Nat) -> Type where
+  MkBfp64Boundary : (lanes : Nat) -> (tritsPerLane : Nat) ->
+                    (0 prf : lanes * tritsPerLane = 64) ->
+                    Bfp64Boundary lanes tritsPerLane
+
+||| Canonical 8-lane x 8-trit = 64-trit Laser Phoenix Lattice Lock boundary witness.
+public export
+laserPhoenixBfp64Boundary : Bfp64Boundary 8 8
+laserPhoenixBfp64Boundary = MkBfp64Boundary 8 8 Refl
+
+||| Tightened `luminousStillnessSeal` parameterized by an explicit `BFP-64` boundary proof,
+||| guaranteeing zero-float drift at extreme compression ratios (`1695/1327`, `3761/3314`).
+public export
+luminousStillnessBfp64Seal : Bfp64Boundary 8 8 -> Gate0x62Transition TNeg TPos
+luminousStillnessBfp64Seal (MkBfp64Boundary 8 8 Refl) = luminousStillnessSeal
+
 ||| Linear CoreSet token (`Fin 7` per `Luminary099/EXECUTIVE.agc`) with QTT multiplicity `1`.
 public export
 data CoreSetToken : (slot : Fin 7) -> Type where

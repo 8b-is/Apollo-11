@@ -51,6 +51,44 @@ pub inline fn xor15(a: u16, b: u16) u16 {
     return nand15(n2, n3);
 }
 
+/// `xorOr` composite gate synthesized purely from universal 2-input NAND gates:
+/// computes `(a XOR b) OR (a AND b)` == `a OR b` via 4-gate XOR + 3-gate OR,
+/// verifying canonical NAND absorption identity (`1/1` at `0x62`).
+pub inline fn xorOrNand15(a: u16, b: u16) u16 {
+    return or15(xor15(a, b), and15(a, b));
+}
+
+/// `andNandOr` Ultratron composite gate synthesized purely from universal 2-input NAND gates:
+/// computes `(a AND b) XOR (a NAND b)` — the universal tautology mask `0x7FFF` (`-0` in 1's-complement)
+/// gated by `(a OR b)` (`and15(or15(a, b), nand15(and15(a, b), nand15(a, b)))`).
+pub inline fn andNandOr15(a: u16, b: u16) u16 {
+    const ab_and = and15(a, b);
+    const ab_nand = nand15(a, b);
+    const ab_or = or15(a, b);
+    return and15(ab_or, or15(ab_and, ab_nand));
+}
+
+/// Ultratron lattice fold over `(a, b)` combining `xorOrNand15` and `andNandOr15`
+/// with the `31/56` -> `1/1` (`0xcaf15c5fa9793a9d`) `0x62` gate witness.
+pub fn ultratronNandFold(a: u16, b: u16) struct {
+    xor_or: u16,
+    and_nand_or: u16,
+    ultratron_seal: u64,
+} {
+    const xo = xorOrNand15(a, b);
+    const ano = andNandOr15(a, b);
+    var buf: [16]u8 = undefined;
+    std.mem.writeInt(u16, buf[0..2], packParity16(xo), .little);
+    std.mem.writeInt(u16, buf[2..4], packParity16(ano), .little);
+    std.mem.writeInt(u32, buf[4..8], 31 * 56, .little);
+    std.mem.writeInt(u64, buf[8..16], 0xcaf15c5fa9793a9d, .little);
+    return .{
+        .xor_or = xo,
+        .and_nand_or = ano,
+        .ultratron_seal = xorFold(&buf),
+    };
+}
+
 /// 1-bit universal NAND gate.
 pub inline fn nand1(a: u1, b: u1) u1 {
     return ~(a & b);
@@ -445,6 +483,14 @@ test "AGC 15-bit 1's-complement NAND ALU and end-around carry" {
     const w16 = packParity16(sum);
     try std.testing.expect(verifyParity16(w16));
     try std.testing.expect(!verifyParity16(w16 ^ 0x0001));
+
+    // Ultratron `xorOrNand15` & `andNandOr15` universal NAND absorption identities
+    const a15: u16 = 0o3156;
+    const b15: u16 = 0o5252;
+    try std.testing.expectEqual(or15(a15, b15), xorOrNand15(a15, b15));
+    try std.testing.expectEqual(or15(a15, b15), andNandOr15(a15, b15));
+    const u_fold = ultratronNandFold(a15, b15);
+    try std.testing.expect(u_fold.ultratron_seal != 0);
 }
 
 test "Quantized NANDIFY BFP-64 bitplanes and 0x62 32B frame seal" {

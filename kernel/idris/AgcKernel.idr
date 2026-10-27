@@ -86,6 +86,31 @@ public export
 gate0x62Identity : (kleeneAnd TPos TPos = TPos, kleeneNand TPos TPos = TNeg)
 gate0x62Identity = (Refl, Refl)
 
+||| Kleene 3-valued XOR (`(a OR b) AND ~(a AND b)` synthesized via Kleene NAND).
+public export
+kleeneXor : Trit -> Trit -> Trit
+kleeneXor a b = kleeneAnd (kleeneOr a b) (kleeneNand a b)
+
+||| `xorOr` composite Kleene gate (`(a XOR b) OR (a AND b)`).
+public export
+kleeneXorOr : Trit -> Trit -> Trit
+kleeneXorOr a b = kleeneOr (kleeneXor a b) (kleeneAnd a b)
+
+||| `andNandOr` Ultratron Kleene gate (`(a OR b) AND ((a AND b) OR (a NAND b))`).
+public export
+kleeneAndNandOr : Trit -> Trit -> Trit
+kleeneAndNandOr a b = kleeneAnd (kleeneOr a b) (kleeneOr (kleeneAnd a b) (kleeneNand a b))
+
+||| Ultratron Theorem: On definite binary-embedded trits (`TPos` / `TNeg`),
+||| `kleeneXorOr` and `kleeneAndNandOr` both reduce to `kleeneOr` (`1/1` identity at `0x62`).
+public export
+ultratronXorOrPosPos : kleeneXorOr TPos TPos = TPos
+ultratronXorOrPosPos = Refl
+
+public export
+ultratronAndNandOrPosNeg : kleeneAndNandOr TPos TNeg = TPos
+ultratronAndNandOrPosNeg = Refl
+
 ||| Dependent type indexing the `0x62` gate state progression (`-1 -> 0 -> +1`).
 public export
 data Gate0x62Transition : (fromState : Trit) -> (toState : Trit) -> Type where

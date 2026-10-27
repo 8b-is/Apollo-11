@@ -1,0 +1,8 @@
+[package]
+name = "apollo11-agc-kernel"
+version = "0.1.0"
+edition = "2021"
+description = "Typesafe Rust AGC Block II EXECUTIVE & WAITLIST kernel with universal NAND 15-bit 1's-complement ALU, BFP-64 quantized NANDIFY, and 0x62 32B frame sealing"
+
+[lib]
+path = "src/lib.rs"

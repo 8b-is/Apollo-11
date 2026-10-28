@@ -217,6 +217,71 @@ pub fn quantizeWord15ToBfp64(w15: u16) Bfp64Word {
     }
 }
 
+/// Pack a 15-bit AGC word (`w15`) into a 3-byte `SPQT` (`base-243`, 5 trits/byte = 1.585 bits/trit)
+/// cell: maps each of the 15 bits into `{0 -> Trit.zero (1), 1 -> +1 (2) for positive or -1 (0) for negative}`
+/// and packs 5 trits per byte (`3^5 = 243 <= 255`), transmuting 16-bit (`Word16`) weight into 1.58-bit ternary.
+pub fn packWord15ToSpqt3B(w15: u16) [3]u8 {
+    const masked = w15 & WORD15_MASK;
+    const is_neg = (masked & 0x4000) != 0 and masked != POS_ZERO_15;
+    const mag: u16 = if (masked == NEG_ZERO_15) 0 else if (is_neg) not15(masked) else masked;
+
+    var out: [3]u8 = .{ 0, 0, 0 };
+    var byte_idx: usize = 0;
+    while (byte_idx < 3) : (byte_idx += 1) {
+        var acc: u8 = 0;
+        var pow3: u8 = 1;
+        var k: usize = 0;
+        while (k < 5) : (k += 1) {
+            const bit_pos: u4 = @intCast(byte_idx * 5 + k);
+            const bit_set = ((mag >> bit_pos) & 1) == 1;
+            const digit: u8 = if (bit_pos == 14)
+                (if (masked == NEG_ZERO_15) 0 else if (is_neg) 0 else 1)
+            else if (!bit_set)
+                1 // Trit.zero -> digit 1
+            else if (is_neg)
+                0 // Trit.neg  -> digit 0
+            else
+                2; // Trit.pos  -> digit 2
+            acc += digit * pow3;
+            if (k < 4) pow3 *= 3;
+        }
+        out[byte_idx] = acc;
+    }
+    return out;
+}
+
+/// Unpack a 3-byte `SPQT` (`1.585 bits/trit` `base-243`) cell back to the exact 15-bit 1's-complement
+/// AGC word (`w15`) and its 16-bit odd-parity word (`w16`).
+pub fn unpackSpqt3BToWord16(cell: [3]u8) struct { w15: u16, w16: u16 } {
+    var digits: [15]u8 = undefined;
+    var byte_idx: usize = 0;
+    while (byte_idx < 3) : (byte_idx += 1) {
+        var v = cell[byte_idx];
+        var k: usize = 0;
+        while (k < 5) : (k += 1) {
+            digits[byte_idx * 5 + k] = v % 3;
+            v /= 3;
+        }
+    }
+    var mag: u16 = 0;
+    var is_neg = false;
+    var b: u4 = 0;
+    while (b < 14) : (b += 1) {
+        const d = digits[b];
+        if (d == 0) {
+            is_neg = true;
+            mag |= (@as(u16, 1) << b);
+        } else if (d == 2) {
+            mag |= (@as(u16, 1) << b);
+        }
+    }
+    if (digits[14] == 0 and mag == 0) {
+        return .{ .w15 = NEG_ZERO_15, .w16 = packParity16(NEG_ZERO_15) };
+    }
+    const w15: u16 = if (is_neg) not15(mag) else (mag & WORD15_MASK);
+    return .{ .w15 = w15, .w16 = packParity16(w15) };
+}
+
 pub fn xorFold(bytes: []const u8) u64 {
     var acc: u64 = 0;
     var i: usize = 0;
@@ -517,6 +582,15 @@ test "Quantized NANDIFY BFP-64 bitplanes and 0x62 32B frame seal" {
     const lock = laserPhoenixLatticeLock(0o33562, 0xdeb4fd894ddb52e2);
     try std.testing.expect(verifyParity16(lock.w16_odd));
     try std.testing.expect(lock.lattice_seal != 0);
+
+    // 16-bit AGC word <-> 1.585 bits/trit SPQT 3-byte base-243 lossless round-trip
+    for ([_]i16{ 0, 1, -1, 67, -67, 3156, -3156, 16383, -16383 }) |val| {
+        const w15 = fromSigned15(val);
+        const cell = packWord15ToSpqt3B(w15);
+        const unpacked = unpackSpqt3BToWord16(cell);
+        try std.testing.expectEqual(w15, unpacked.w15);
+        try std.testing.expect(verifyParity16(unpacked.w16));
+    }
 }
 
 test "AGC Executive priority preemption and 1201/1202 bailout protection" {
